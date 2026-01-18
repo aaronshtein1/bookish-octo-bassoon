@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HHA Exchange RPA Runner</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>📊 HHA Exchange RPA Runner</h1>
+            <div class="header-status">
+                <span class="status-badge status-running" id="systemStatus">
+                    <span class="status-dot"></span> Running
+                </span>
+                <span class="stats" id="statsDisplay">
+                    Active: <strong>0</strong> |
+                    Completed: <strong>0</strong> |
+                    Failed: <strong>0</strong>
+                </span>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <nav class="nav">
+                    <button class="nav-item active" onclick="showTab('run')">
+                        ▶️ Run Report
+                    </button>
+                    <button class="nav-item" onclick="showTab('jobs')">
+                        📋 Active Jobs
+                    </button>
+                    <button class="nav-item" onclick="showTab('history')">
+                        📁 History
+                    </button>
+                    <button class="nav-item" onclick="showTab('downloads')">
+                        💾 Downloads
+                    </button>
+                </nav>
+            </aside>
+
+            <!-- Content Area -->
+            <main class="content">
+                <!-- Run Report Tab -->
+                <div id="tab-run" class="tab-content active">
+                    <h2>Run Report</h2>
+
+                    <form id="runReportForm" class="form">
+                        <div class="form-group">
+                            <label for="reportSelect">Select Report</label>
+                            <select id="reportSelect" required>
+                                <option value="">Loading reports...</option>
+                            </select>
+                            <small class="form-help" id="reportDescription"></small>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="fromDate">From Date</label>
+                                <input type="date" id="fromDate" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="toDate">To Date</label>
+                                <input type="date" id="toDate" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="forceDownload">
+                                Force re-download (even if file exists)
+                            </label>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" id="runButton">
+                            ▶️ Run Report
+                        </button>
+                    </form>
+
+                    <div id="quickDateButtons" class="quick-dates">
+                        <h3>Quick Date Ranges</h3>
+                        <button onclick="setDateRange('today')" class="btn btn-secondary btn-sm">Today</button>
+                        <button onclick="setDateRange('yesterday')" class="btn btn-secondary btn-sm">Yesterday</button>
+                        <button onclick="setDateRange('thisWeek')" class="btn btn-secondary btn-sm">This Week</button>
+                        <button onclick="setDateRange('lastWeek')" class="btn btn-secondary btn-sm">Last Week</button>
+                        <button onclick="setDateRange('thisMonth')" class="btn btn-secondary btn-sm">This Month</button>
+                        <button onclick="setDateRange('lastMonth')" class="btn btn-secondary btn-sm">Last Month</button>
+                    </div>
+                </div>
+
+                <!-- Active Jobs Tab -->
+                <div id="tab-jobs" class="tab-content">
+                    <h2>Active Jobs</h2>
+                    <div id="activeJobsList">
+                        <p class="empty-state">No active jobs</p>
+                    </div>
+                </div>
+
+                <!-- History Tab -->
+                <div id="tab-history" class="tab-content">
+                    <h2>Job History</h2>
+                    <div id="historyList">
+                        <p class="empty-state">No job history</p>
+                    </div>
+                </div>
+
+                <!-- Downloads Tab -->
+                <div id="tab-downloads" class="tab-content">
+                    <h2>Downloaded Files</h2>
+                    <div id="downloadsList">
+                        <p class="empty-state">Loading downloads...</p>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Job Detail Modal -->
+    <div id="jobModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Job Details</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="modalJobDetails"></div>
+                <div class="logs-container">
+                    <h3>Output Logs</h3>
+                    <pre id="modalLogs" class="logs"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/app.js"></script>
+</body>
+</html>

@@ -1,18 +1,47 @@
 # HHA Exchange RPA Export Runner
 
-Production-ready RPA (Robotic Process Automation) tool for automating report downloads from HHA Exchange using Playwright. This tool logs in as an authorized user and navigates the UI to download specific reports with configurable date ranges.
+Production-ready RPA (Robotic Process Automation) tool for automating report downloads from HHA Exchange using Playwright. Available as both a **Web Interface** and **Command Line** tool.
+
+## 🌟 Two Ways to Use
+
+### 1. 🖥️ Web Interface (NEW!)
+
+**The easiest way to run reports** - No command line needed!
+
+```bash
+npm run web
+```
+
+Open `http://localhost:3000` in your browser and:
+- ✅ Browse available reports visually
+- ✅ Select dates with a calendar picker
+- ✅ Monitor jobs in real-time
+- ✅ Download files with one click
+- ✅ View detailed logs in browser
+
+**📖 See [WEB_APP_GUIDE.md](WEB_APP_GUIDE.md) for complete web interface documentation**
+
+### 2. ⌨️ Command Line
+
+For automation and scheduled runs:
+
+```bash
+node rpa/run.js --report active_patients_auth --from 2024-01-01 --to 2024-01-31
+```
 
 ## Features
 
-- **Robust authentication** with support for MFA (human-in-the-loop)
-- **Configurable report definitions** via YAML
-- **Idempotent downloads** (skip re-downloading existing files)
-- **Retry logic** with exponential backoff for transient errors
-- **Comprehensive logging** with automatic password redaction
-- **Failure screenshots** for debugging
-- **Human-like behavior** with randomized delays
-- **Session management** with automatic re-login
-- **Production-ready architecture** with clean separation of concerns
+- **🌐 Web Interface** - Modern, user-friendly dashboard
+- **⚡ Real-time monitoring** - Watch job progress live via WebSocket
+- **🔐 Robust authentication** - Support for MFA (human-in-the-loop)
+- **⚙️ Configurable reports** - Define reports via YAML
+- **♻️ Idempotent downloads** - Skip re-downloading existing files
+- **🔄 Retry logic** - Exponential backoff for transient errors
+- **📝 Comprehensive logging** - Automatic password redaction
+- **📸 Failure screenshots** - For debugging
+- **👤 Human-like behavior** - Randomized delays
+- **🔑 Session management** - Automatic re-login
+- **🏗️ Production-ready** - Clean separation of concerns
 
 ## Prerequisites
 

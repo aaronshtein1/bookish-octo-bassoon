@@ -8,7 +8,9 @@
     "rpa:run": "node rpa/run.js",
     "rpa:debug": "node rpa/run.js --headful",
     "rpa:codegen": "npx playwright codegen https://app.hhaexchange.com/identity/account/login",
-    "install:playwright": "npx playwright install chromium"
+    "install:playwright": "npx playwright install chromium",
+    "web": "node web/server.js",
+    "web:dev": "node --watch web/server.js"
   },
   "keywords": ["rpa", "automation", "playwright", "healthcare", "reporting"],
   "author": "",
@@ -16,8 +18,10 @@
   "dependencies": {
     "@playwright/test": "^1.40.1",
     "dotenv": "^16.3.1",
+    "express": "^4.18.2",
     "js-yaml": "^4.1.0",
     "winston": "^3.11.0",
+    "ws": "^8.16.0",
     "yargs": "^17.7.2"
   },
   "engines": {

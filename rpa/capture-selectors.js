@@ -26,6 +26,7 @@ function question(prompt) {
 }
 
 async function main() {
+  console.log('[DEBUG] main() started');
   console.log('='.repeat(60));
   console.log('HHA Exchange Selector Capture Helper');
   console.log('='.repeat(60));
@@ -45,15 +46,21 @@ async function main() {
   const username = process.env.HHAE_USERNAME;
   const password = process.env.HHAE_PASSWORD;
 
+  console.log('[DEBUG] Environment check:');
+  console.log('[DEBUG] HHAE_USERNAME:', username ? '***SET***' : 'NOT SET');
+  console.log('[DEBUG] HHAE_PASSWORD:', password ? '***SET***' : 'NOT SET');
+
   if (!username || !password) {
     console.error('ERROR: Please set HHAE_USERNAME and HHAE_PASSWORD in .env file');
     process.exit(1);
   }
 
+  console.log('[DEBUG] About to launch browser...');
   const browser = await chromium.launch({
     headless: false,
     slowMo: 500
   });
+  console.log('[DEBUG] Browser launched successfully');
 
   const context = await browser.newContext({
     viewport: { width: 1920, height: 1080 }
@@ -64,7 +71,17 @@ async function main() {
   try {
     // Step 1: Navigate to login page
     console.log('Step 1: Navigating to login page...');
-    await page.goto('https://app.hhaexchange.com/identity/account/login');
+    console.log('Current URL:', page.url());
+    try {
+      console.log('About to navigate...');
+      const response = await page.goto('https://app.hhaexchange.com/identity/account/login', { timeout: 30000 });
+      console.log('Navigation response:', response?.status());
+      console.log('Page loaded, URL is now:', page.url());
+    } catch (navError) {
+      console.error('Navigation error:', navError.message);
+      throw navError;
+    }
+    console.log('Waiting for page to stabilize...');
     await page.waitForLoadState('networkidle');
 
     await question('\n✋ PAUSE: Login page loaded. Inspect the page and note:\n  - Username field selector\n  - Password field selector\n  - Login button selector\n\nPress ENTER to continue...');
@@ -143,4 +160,8 @@ async function main() {
   }
 }
 
-main().catch(console.error);
+main().catch(error => {
+  console.error('[DEBUG] main() threw an error:');
+  console.error(error);
+  process.exit(1);
+});

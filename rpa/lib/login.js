@@ -12,7 +12,7 @@ import {
  * Login configuration
  */
 const LOGIN_CONFIG = {
-  url: 'https://www.hhax.com',
+  url: 'https://app.hhaexchange.com/identity/account/login',
   selectors: {
     username: 'input[name="username"], input[type="email"], input#username, input#email',
     password: 'input[name="password"], input[type="password"], input#password',

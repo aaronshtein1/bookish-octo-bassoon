@@ -7,7 +7,7 @@
   "scripts": {
     "rpa:run": "node rpa/run.js",
     "rpa:debug": "node rpa/run.js --headful",
-    "rpa:codegen": "npx playwright codegen https://www.hhax.com",
+    "rpa:codegen": "npx playwright codegen https://app.hhaexchange.com/identity/account/login",
     "install:playwright": "npx playwright install chromium"
   },
   "keywords": ["rpa", "automation", "playwright", "healthcare", "reporting"],

@@ -14,7 +14,7 @@
 
 # Global configuration (optional)
 global:
-  base_url: https://www.hhax.com
+  base_url: https://app.hhaexchange.com
   default_timeout: 30000
   retry_attempts: 2
 
@@ -25,7 +25,7 @@ reports:
     description: "Active patients with authorization details"
 
     # Starting URL for this report (can be direct link or base URL)
-    start_url: "https://www.hhax.com/reports/patients"
+    start_url: "https://app.hhaexchange.com/reports/patients"
 
     # Menu navigation steps (optional - use if you need to click through menus)
     # Each step should have:
@@ -80,7 +80,7 @@ reports:
   visits_confirmed_hours:
     description: "Visit records with confirmed hours for billing"
 
-    start_url: "https://www.hhax.com/reports/visits"
+    start_url: "https://app.hhaexchange.com/reports/visits"
 
     menu_steps:
       - type: click
@@ -121,7 +121,7 @@ reports:
   aide_roster_compliance:
     description: "Aide roster with compliance training status"
 
-    start_url: "https://www.hhax.com/reports/compliance"
+    start_url: "https://app.hhaexchange.com/reports/compliance"
 
     menu_steps:
       - type: click

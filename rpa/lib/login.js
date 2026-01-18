@@ -7,6 +7,7 @@ import {
   captureFailureScreenshot,
   detectLoggedOut
 } from './navigation.js';
+import { getMFACodeFromEmail } from './mfa-email.js';
 
 /**
  * Login configuration
@@ -14,9 +15,9 @@ import {
 const LOGIN_CONFIG = {
   url: 'https://app.hhaexchange.com/identity/account/login',
   selectors: {
-    username: 'input[name="username"], input[type="email"], input#username, input#email',
-    password: 'input[name="password"], input[type="password"], input#password',
-    submitButton: 'button[type="submit"], button:has-text("Login"), button:has-text("Sign In"), input[type="submit"]',
+    username: 'input[name="Username"], input#Username',
+    password: 'input[type="password"], input[name="Password"], input#Password',
+    submitButton: 'input[type="submit"], button[type="submit"]',
     // Indicators that we've successfully logged in
     loggedInIndicators: [
       '.dashboard',
@@ -27,11 +28,14 @@ const LOGIN_CONFIG = {
     // MFA indicators
     mfaIndicators: [
       'input[name="code"]',
+      'input[name="Code"]',
       'input[name="mfa"]',
       'input[name="verification"]',
+      'input[type="text"][placeholder*="code" i]',
       'text=/verification code/i',
       'text=/two-factor/i',
-      'text=/enter code/i'
+      'text=/enter code/i',
+      'text=/security code/i'
     ]
   },
   timeouts: {
@@ -77,6 +81,14 @@ async function promptForMFA(logger) {
  */
 async function detectMFA(page, logger) {
   try {
+    // Check URL first - most reliable
+    const currentUrl = page.url();
+    if (currentUrl.includes('/mfa/') || currentUrl.includes('/2fa/') || currentUrl.includes('/verify')) {
+      logger.info(`MFA detected via URL: ${currentUrl}`);
+      return true;
+    }
+
+    // Check for MFA form elements
     for (const selector of LOGIN_CONFIG.selectors.mfaIndicators) {
       const element = await page.$(selector);
       if (element) {
@@ -195,23 +207,118 @@ async function performCredentialEntry(page, username, password, logger, sessionI
 }
 
 /**
- * Handle MFA flow (human-in-the-loop)
+ * Handle MFA flow with automatic email code retrieval or manual fallback
  * @param {import('@playwright/test').Page} page - Playwright page object
  * @param {Object} logger - Logger instance
  * @param {boolean} headless - Whether running in headless mode
  * @returns {Promise<boolean>} Success status
  */
 async function handleMFA(page, logger, headless) {
-  if (headless) {
-    logger.error('MFA detected but running in headless mode. Please use --headful flag for MFA support.');
-    return false;
+  logger.info('Attempting automatic MFA code retrieval from email...');
+
+  // Try to get MFA code from email
+  const mfaCode = await getMFACodeFromEmail(logger);
+
+  if (mfaCode) {
+    // Automatic MFA: Enter code programmatically
+    logger.info('Entering MFA code automatically...');
+
+    try {
+      // Find and fill MFA code input field
+      const codeInputSelectors = [
+        'input[name="Code"]',
+        'input[name="code"]',
+        'input[type="text"]',
+        'input[placeholder*="code" i]',
+        'input[placeholder*="verification" i]'
+      ];
+
+      let codeFilled = false;
+      for (const selector of codeInputSelectors) {
+        try {
+          const element = await page.$(selector);
+          if (element && await element.isVisible()) {
+            await element.fill(mfaCode);
+            logger.info(`MFA code entered using selector: ${selector}`);
+            codeFilled = true;
+            break;
+          }
+        } catch (e) {
+          // Try next selector
+        }
+      }
+
+      if (!codeFilled) {
+        logger.warn('Could not find MFA code input field. Falling back to manual entry.');
+        if (headless) {
+          logger.error('Running in headless mode, cannot fall back to manual MFA.');
+          return false;
+        }
+        await promptForMFA(logger);
+      } else {
+        // Submit the MFA form
+        await humanDelay(500, 1000);
+
+        const submitSelectors = [
+          'button[type="submit"]',
+          'input[type="submit"]',
+          'button:has-text("Verify")',
+          'button:has-text("Submit")',
+          'button:has-text("Continue")'
+        ];
+
+        let submitted = false;
+        for (const selector of submitSelectors) {
+          try {
+            const element = await page.$(selector);
+            if (element && await element.isVisible()) {
+              await element.click();
+              logger.info(`MFA form submitted using: ${selector}`);
+              submitted = true;
+              break;
+            }
+          } catch (e) {
+            // Try next selector
+          }
+        }
+
+        if (!submitted) {
+          logger.warn('Could not find MFA submit button');
+          if (!headless) {
+            await promptForMFA(logger);
+          }
+        }
+      }
+    } catch (error) {
+      logger.error(`Error during automatic MFA: ${error.message}`);
+      if (headless) {
+        return false;
+      }
+      // Fall back to manual MFA
+      await promptForMFA(logger);
+    }
+  } else {
+    // No automatic MFA available
+    logger.info('Automatic MFA not available. Waiting for manual MFA completion...');
+
+    if (headless) {
+      logger.error('MFA detected but running in headless mode and email automation not configured.');
+      logger.info('To enable automatic MFA, configure Azure AD credentials in .env file.');
+      logger.info('Or use --headful flag for manual MFA support.');
+      return false;
+    }
+
+    // Manual MFA: Display message and wait for completion automatically
+    logger.info('='.repeat(60));
+    logger.info('MFA DETECTED - Please complete the MFA challenge');
+    logger.info('='.repeat(60));
+    logger.info('The automation will continue automatically after you complete MFA...');
+    logger.info('='.repeat(60));
   }
 
-  // Prompt user to complete MFA
-  await promptForMFA(logger);
-
-  // Wait for landing page
-  logger.info('Waiting for landing page after MFA...');
+  // Wait for landing page (automatically detects when MFA is complete)
+  logger.info('Waiting for MFA completion and landing page...');
+  await humanDelay(2000, 3000);
   const landingPageDetected = await waitForLandingPage(
     page,
     logger,

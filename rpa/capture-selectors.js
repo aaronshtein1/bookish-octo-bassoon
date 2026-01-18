@@ -128,28 +128,40 @@ async function main() {
 
     await question('\n✋ PAUSE: After login. Check if:\n  - Login was successful\n  - MFA is required (if yes, complete it now)\n  - You can see the dashboard/landing page\n\nNote the landing page URL and any unique elements.\n\nPress ENTER to continue...');
 
-    // Step 4: Navigate to reports
-    console.log('\nStep 4: Now navigate to a report manually.');
-    console.log('We need to capture:');
-    console.log('  - Menu navigation steps');
-    console.log('  - Date range field selectors');
-    console.log('  - Run/Generate button selector');
-    console.log('  - Export/Download button selector');
+    // Step 4: Navigate to Add Staff form
+    console.log('\nStep 4: Now navigate to Add New Staff form manually.');
+    console.log('Expected path: Workforce > Staff > Add New Staff');
+    console.log('');
+    console.log('We need to capture selectors for ALL form fields:');
+    console.log('  - Primary Office (dropdown)');
+    console.log('  - Caregiver Type (dropdown)');
+    console.log('  - First Name, Last Name (text inputs)');
+    console.log('  - Gender, Initials (text/dropdown)');
+    console.log('  - Date of Birth (date selector)');
+    console.log('  - Status (dropdown)');
+    console.log('  - Employment Type (checkbox/dropdown)');
+    console.log('  - Referral Source, Team, Location, Branch (dropdowns)');
+    console.log('  - Address, City, State, Zip (text inputs)');
+    console.log('  - Primary Phone, Mobile Phone (3 text inputs each)');
+    console.log('  - Language 1, Language 2 (dropdowns)');
+    console.log('  - Email (text input)');
+    console.log('  - Submit button');
     console.log('');
 
-    await question('Navigate to your first report and press ENTER when ready...');
+    await question('Navigate to Add New Staff form and press ENTER when ready...');
 
     console.log('\nCurrent URL:', page.url());
 
-    await question('\n✋ PAUSE: Inspect the report page and note:\n  - Date range input selectors (From and To)\n  - Run/Generate report button\n  - Export/Download button\n  - Any menu items you clicked to get here\n\nPress ENTER to finish...');
+    await question('\n✋ PAUSE: Inspect the Add Staff form and note:\n  - Use F12 DevTools to inspect each field\n  - Look for name="..." or id="..." attributes\n  - Check if phone fields are 3 separate inputs or one\n  - Note the exact text/value options in dropdowns\n  - Find the Submit/Save button selector\n\nPress ENTER to finish...');
 
     console.log('\n' + '='.repeat(60));
     console.log('Selector capture session complete!');
     console.log('='.repeat(60));
     console.log('\nNext steps:');
-    console.log('1. Update rpa/config.yaml with the selectors you captured');
-    console.log('2. Test with: node rpa/run.js --report <name> --from 2024-01-01 --to 2024-01-31 --headful');
-    console.log('3. Iterate until it works reliably');
+    console.log('1. Update caregiver-config.js with the selectors you captured');
+    console.log('2. Set a caregiver to "Active" status in Monday.com board 6119848729');
+    console.log('3. Test with: node caregiver-onboarding.js --headful --limit 1');
+    console.log('4. Iterate until it works reliably');
     console.log('');
 
   } catch (error) {

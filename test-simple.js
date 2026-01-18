@@ -10,12 +10,12 @@ async function main() {
   });
 
   const page = await browser.newPage();
-  
-  console.log('About to navigate to Google...');
-  console.log('URL: https://google.com');
-  
+
+  console.log('About to navigate to HHA Exchange...');
+  console.log('URL: https://app.hhaexchange.com/identity/account/login');
+
   try {
-    const response = await page.goto('https://google.com', { waitUntil: 'domcontentloaded' });
+    const response = await page.goto('https://app.hhaexchange.com/identity/account/login', { waitUntil: 'domcontentloaded' });
     console.log('Navigation complete. Status:', response?.status());
     console.log('Final URL:', page.url());
     

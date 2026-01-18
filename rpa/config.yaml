@@ -1,0 +1,175 @@
+# RPA Report Configuration
+#
+# This file defines the automation steps for each report.
+# To customize for your actual HHA Exchange reports:
+#   1. Run in headful mode: npm run rpa:debug
+#   2. Use Playwright codegen to capture selectors: npm run rpa:codegen
+#   3. Update the selectors below with real values from your application
+#
+# Selector tips:
+#   - Prefer role-based selectors: getByRole('button', { name: 'Export' })
+#   - Use text selectors when possible: text=/Download/i
+#   - Avoid brittle CSS selectors unless necessary
+#   - Test selectors in browser DevTools first
+
+# Global configuration (optional)
+global:
+  base_url: https://www.hhax.com
+  default_timeout: 30000
+  retry_attempts: 2
+
+# Report definitions
+reports:
+  # Report 1: Active Patients Authorization Report
+  active_patients_auth:
+    description: "Active patients with authorization details"
+
+    # Starting URL for this report (can be direct link or base URL)
+    start_url: "https://www.hhax.com/reports/patients"
+
+    # Menu navigation steps (optional - use if you need to click through menus)
+    # Each step should have:
+    #   - type: click, hover, or wait
+    #   - selector: CSS selector, role selector, or text selector
+    #   - description: Human-readable description
+    menu_steps:
+      - type: click
+        selector: 'button:has-text("Reports")'
+        description: "Click main Reports menu"
+
+      - type: click
+        selector: 'a:has-text("Patients")'
+        description: "Click Patients submenu"
+
+      - type: click
+        selector: 'text=/Active.*Authorization/i'
+        description: "Select Active Patients Authorization report"
+
+    # Date range input selectors
+    # Update these with actual field IDs/names from your application
+    date_range_selectors:
+      from: 'input[name="start_date"], input#startDate, input[placeholder*="Start"]'
+      to: 'input[name="end_date"], input#endDate, input[placeholder*="End"]'
+
+    # Run/Generate button (optional - some reports auto-generate)
+    run_button_selector: 'button:has-text("Generate"), button:has-text("Run Report"), button[type="submit"]'
+
+    # Download trigger configuration
+    download_trigger:
+      trigger_selector: 'button:has-text("Export"), button:has-text("Download"), a:has-text("CSV")'
+      trigger_type: click  # click or submit
+
+    # Expected filename pattern (regex)
+    # The downloaded file must match this pattern
+    expected_filename_regex: '(active[_-]?patients?|authorization).*\.(csv|xlsx|xls)$'
+
+    # Post-download validation (optional)
+    validation:
+      # Expected columns in CSV header
+      required_columns:
+        - "Patient ID"
+        - "Patient Name"
+        - "Auth Status"
+        - "Start Date"
+        - "End Date"
+
+      # Minimum number of rows expected (warning only, not a hard fail)
+      min_rows: 1
+
+  # Report 2: Visits with Confirmed Hours
+  visits_confirmed_hours:
+    description: "Visit records with confirmed hours for billing"
+
+    start_url: "https://www.hhax.com/reports/visits"
+
+    menu_steps:
+      - type: click
+        selector: 'nav[role="navigation"] button:has-text("Reports")'
+        description: "Open Reports menu"
+
+      - type: click
+        selector: 'ul.submenu a:has-text("Visits")'
+        description: "Navigate to Visits section"
+
+      - type: click
+        selector: 'div.report-list button:has-text("Confirmed Hours")'
+        description: "Select Confirmed Hours report"
+
+    date_range_selectors:
+      from: '#visit_start_date, input[data-field="visitStartDate"]'
+      to: '#visit_end_date, input[data-field="visitEndDate"]'
+
+    run_button_selector: 'button.generate-report, button:has-text("Run"), input[value="Generate"]'
+
+    download_trigger:
+      trigger_selector: 'a.download-csv, button:has-text("Download CSV"), [data-action="export"]'
+      trigger_type: click
+
+    expected_filename_regex: '(visits?|confirmed[_-]?hours?).*\.(csv|xlsx)$'
+
+    validation:
+      required_columns:
+        - "Visit ID"
+        - "Visit Date"
+        - "Patient Name"
+        - "Aide Name"
+        - "Hours Confirmed"
+        - "Status"
+      min_rows: 1
+
+  # Report 3: Aide Roster Compliance Report
+  aide_roster_compliance:
+    description: "Aide roster with compliance training status"
+
+    start_url: "https://www.hhax.com/reports/compliance"
+
+    menu_steps:
+      - type: click
+        selector: '[data-menu="reports"]'
+        description: "Click Reports in main navigation"
+
+      - type: hover
+        selector: 'li:has-text("Compliance")'
+        description: "Hover over Compliance submenu"
+
+      - type: click
+        selector: 'a:has-text("Aide Roster")'
+        description: "Click Aide Roster option"
+
+    # This report might not need date range - leave selectors as placeholder
+    date_range_selectors:
+      from: 'input[name="report_start"], #reportStartDate'
+      to: 'input[name="report_end"], #reportEndDate'
+
+    run_button_selector: 'button[name="generate"], input[type="submit"][value*="Generate"]'
+
+    download_trigger:
+      trigger_selector: '#exportButton, button:has-text("Export to Excel"), a[href*="export"]'
+      trigger_type: click
+
+    expected_filename_regex: '(aide|roster|compliance).*\.(csv|xlsx|xls)$'
+
+    validation:
+      required_columns:
+        - "Aide ID"
+        - "Aide Name"
+        - "Hire Date"
+        - "Training Status"
+        - "Compliance %"
+      min_rows: 1
+
+# Additional example showing a simpler report with fewer steps
+# Uncomment and customize as needed:
+#
+#  simple_export_example:
+#    description: "Simple one-click export with no menu navigation"
+#    start_url: "https://www.hhax.com/quick-reports/dashboard"
+#    menu_steps: []  # No menu navigation needed
+#    date_range_selectors:
+#      from: '#fromDate'
+#      to: '#toDate'
+#    run_button_selector: null  # Report auto-generates
+#    download_trigger:
+#      trigger_selector: '#downloadBtn'
+#      trigger_type: click
+#    expected_filename_regex: 'dashboard.*\.csv$'

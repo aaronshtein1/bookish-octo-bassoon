@@ -1,0 +1,26 @@
+{
+  "name": "hhae-rpa-export-runner",
+  "version": "1.0.0",
+  "description": "Production RPA runner for automating report downloads from HHA Exchange",
+  "type": "module",
+  "main": "rpa/run.js",
+  "scripts": {
+    "rpa:run": "node rpa/run.js",
+    "rpa:debug": "node rpa/run.js --headful",
+    "rpa:codegen": "npx playwright codegen https://www.hhax.com",
+    "install:playwright": "npx playwright install chromium"
+  },
+  "keywords": ["rpa", "automation", "playwright", "healthcare", "reporting"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@playwright/test": "^1.40.1",
+    "dotenv": "^16.3.1",
+    "js-yaml": "^4.1.0",
+    "winston": "^3.11.0",
+    "yargs": "^17.7.2"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

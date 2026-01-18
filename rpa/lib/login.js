@@ -1,0 +1,359 @@
+import readline from 'readline';
+import {
+  humanDelay,
+  waitForStableUI,
+  safeFill,
+  safeClick,
+  captureFailureScreenshot,
+  detectLoggedOut
+} from './navigation.js';
+
+/**
+ * Login configuration
+ */
+const LOGIN_CONFIG = {
+  url: 'https://www.hhax.com',
+  selectors: {
+    username: 'input[name="username"], input[type="email"], input#username, input#email',
+    password: 'input[name="password"], input[type="password"], input#password',
+    submitButton: 'button[type="submit"], button:has-text("Login"), button:has-text("Sign In"), input[type="submit"]',
+    // Indicators that we've successfully logged in
+    loggedInIndicators: [
+      '.dashboard',
+      '.main-nav',
+      'text=/Welcome/i',
+      '[data-testid="user-menu"]'
+    ],
+    // MFA indicators
+    mfaIndicators: [
+      'input[name="code"]',
+      'input[name="mfa"]',
+      'input[name="verification"]',
+      'text=/verification code/i',
+      'text=/two-factor/i',
+      'text=/enter code/i'
+    ]
+  },
+  timeouts: {
+    pageLoad: 30000,
+    loginSubmit: 15000,
+    mfaDetection: 5000,
+    landingPage: 60000
+  }
+};
+
+/**
+ * Prompt user for manual MFA completion
+ * @param {Object} logger - Logger instance
+ * @returns {Promise<void>}
+ */
+async function promptForMFA(logger) {
+  logger.info('='.repeat(60));
+  logger.info('MFA DETECTED - Human Intervention Required');
+  logger.info('='.repeat(60));
+  logger.info('Please complete the MFA challenge in the browser window.');
+  logger.info('Press ENTER when you have completed MFA and reached the landing page...');
+  logger.info('='.repeat(60));
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
+  return new Promise((resolve) => {
+    rl.question('', () => {
+      rl.close();
+      logger.info('Continuing automation...');
+      resolve();
+    });
+  });
+}
+
+/**
+ * Detect if MFA is required
+ * @param {import('@playwright/test').Page} page - Playwright page object
+ * @param {Object} logger - Logger instance
+ * @returns {Promise<boolean>} True if MFA detected
+ */
+async function detectMFA(page, logger) {
+  try {
+    for (const selector of LOGIN_CONFIG.selectors.mfaIndicators) {
+      const element = await page.$(selector);
+      if (element) {
+        const isVisible = await element.isVisible();
+        if (isVisible) {
+          logger.info(`MFA detected via selector: ${selector}`);
+          return true;
+        }
+      }
+    }
+  } catch (error) {
+    logger.debug(`MFA detection check failed: ${error.message}`);
+  }
+
+  return false;
+}
+
+/**
+ * Wait for landing page after login
+ * @param {import('@playwright/test').Page} page - Playwright page object
+ * @param {Object} logger - Logger instance
+ * @param {number} timeout - Timeout in milliseconds
+ * @returns {Promise<boolean>} True if landing page detected
+ */
+async function waitForLandingPage(page, logger, timeout = 60000) {
+  const startTime = Date.now();
+
+  while (Date.now() - startTime < timeout) {
+    // Check for logged-in indicators
+    for (const selector of LOGIN_CONFIG.selectors.loggedInIndicators) {
+      try {
+        const element = await page.$(selector);
+        if (element) {
+          const isVisible = await element.isVisible();
+          if (isVisible) {
+            logger.info(`Landing page detected via selector: ${selector}`);
+            return true;
+          }
+        }
+      } catch (error) {
+        // Continue checking
+      }
+    }
+
+    // Also check URL doesn't contain login/auth
+    const currentUrl = page.url();
+    const loggedOut = await detectLoggedOut(page, logger);
+    if (!loggedOut && !currentUrl.includes('login') && !currentUrl.includes('signin')) {
+      logger.info('Landing page detected via URL change');
+      return true;
+    }
+
+    await humanDelay(500, 1000);
+  }
+
+  logger.warn('Landing page not detected within timeout');
+  return false;
+}
+
+/**
+ * Perform login with username and password
+ * @param {import('@playwright/test').Page} page - Playwright page object
+ * @param {string} username - Username
+ * @param {string} password - Password
+ * @param {Object} logger - Logger instance
+ * @param {string} sessionId - Session ID for screenshots
+ * @returns {Promise<boolean>} Success status
+ */
+async function performCredentialEntry(page, username, password, logger, sessionId) {
+  logger.info('Entering credentials...');
+
+  // Fill username
+  const usernameSuccess = await safeFill(
+    page,
+    LOGIN_CONFIG.selectors.username,
+    username,
+    logger
+  );
+
+  if (!usernameSuccess) {
+    await captureFailureScreenshot(page, sessionId, 'login-username-failed', logger);
+    return false;
+  }
+
+  await humanDelay();
+
+  // Fill password
+  const passwordSuccess = await safeFill(
+    page,
+    LOGIN_CONFIG.selectors.password,
+    password,
+    logger
+  );
+
+  if (!passwordSuccess) {
+    await captureFailureScreenshot(page, sessionId, 'login-password-failed', logger);
+    return false;
+  }
+
+  await humanDelay();
+
+  // Click submit button
+  logger.info('Submitting login form...');
+  const submitSuccess = await safeClick(
+    page,
+    LOGIN_CONFIG.selectors.submitButton,
+    logger
+  );
+
+  if (!submitSuccess) {
+    await captureFailureScreenshot(page, sessionId, 'login-submit-failed', logger);
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Handle MFA flow (human-in-the-loop)
+ * @param {import('@playwright/test').Page} page - Playwright page object
+ * @param {Object} logger - Logger instance
+ * @param {boolean} headless - Whether running in headless mode
+ * @returns {Promise<boolean>} Success status
+ */
+async function handleMFA(page, logger, headless) {
+  if (headless) {
+    logger.error('MFA detected but running in headless mode. Please use --headful flag for MFA support.');
+    return false;
+  }
+
+  // Prompt user to complete MFA
+  await promptForMFA(logger);
+
+  // Wait for landing page
+  logger.info('Waiting for landing page after MFA...');
+  const landingPageDetected = await waitForLandingPage(
+    page,
+    logger,
+    LOGIN_CONFIG.timeouts.landingPage
+  );
+
+  if (!landingPageDetected) {
+    logger.error('Landing page not detected after MFA completion');
+    return false;
+  }
+
+  logger.info('MFA completed successfully');
+  return true;
+}
+
+/**
+ * Main login function
+ * Supports two modes:
+ * a) Normal login (no MFA)
+ * b) MFA human-in-the-loop: pause and prompt operator to complete MFA manually
+ *
+ * @param {import('@playwright/test').Page} page - Playwright page object
+ * @param {Object} credentials - Login credentials
+ * @param {string} credentials.username - Username
+ * @param {string} credentials.password - Password
+ * @param {Object} logger - Logger instance
+ * @param {string} sessionId - Session ID for screenshots
+ * @param {boolean} headless - Whether running in headless mode
+ * @returns {Promise<boolean>} Success status
+ */
+export async function login(page, credentials, logger, sessionId, headless = true) {
+  try {
+    logger.info('Starting login process...');
+    logger.info(`Navigating to: ${LOGIN_CONFIG.url}`);
+
+    // Navigate to login page
+    await page.goto(LOGIN_CONFIG.url, {
+      waitUntil: 'domcontentloaded',
+      timeout: LOGIN_CONFIG.timeouts.pageLoad
+    });
+
+    await waitForStableUI(page);
+
+    // Enter credentials and submit
+    const credentialsSuccess = await performCredentialEntry(
+      page,
+      credentials.username,
+      credentials.password,
+      logger,
+      sessionId
+    );
+
+    if (!credentialsSuccess) {
+      logger.error('Failed to enter credentials');
+      return false;
+    }
+
+    // Wait a moment for redirect/response
+    await humanDelay(1000, 2000);
+    await waitForStableUI(page);
+
+    // Check for MFA
+    const mfaRequired = await detectMFA(page, logger);
+
+    if (mfaRequired) {
+      logger.info('MFA challenge detected');
+      const mfaSuccess = await handleMFA(page, logger, headless);
+
+      if (!mfaSuccess) {
+        await captureFailureScreenshot(page, sessionId, 'login-mfa-failed', logger);
+        return false;
+      }
+    } else {
+      // No MFA - wait for landing page
+      logger.info('No MFA detected, waiting for landing page...');
+      const landingPageDetected = await waitForLandingPage(
+        page,
+        logger,
+        LOGIN_CONFIG.timeouts.loginSubmit
+      );
+
+      if (!landingPageDetected) {
+        logger.warn('Landing page not clearly detected, but continuing...');
+        // Don't fail - sometimes the indicators aren't perfect
+      }
+    }
+
+    // Final verification
+    await humanDelay(1000, 1500);
+    const isLoggedOut = await detectLoggedOut(page, logger);
+
+    if (isLoggedOut) {
+      logger.error('Login failed - still on login page');
+      await captureFailureScreenshot(page, sessionId, 'login-final-check-failed', logger);
+      return false;
+    }
+
+    logger.info('Login successful!');
+    return true;
+  } catch (error) {
+    logger.error(`Login failed with error: ${error.message}`);
+    await captureFailureScreenshot(page, sessionId, 'login-exception', logger);
+    throw error;
+  }
+}
+
+/**
+ * Verify login session is still active
+ * @param {import('@playwright/test').Page} page - Playwright page object
+ * @param {Object} logger - Logger instance
+ * @returns {Promise<boolean>} True if still logged in
+ */
+export async function verifyLoginSession(page, logger) {
+  logger.info('Verifying login session...');
+
+  const isLoggedOut = await detectLoggedOut(page, logger);
+
+  if (isLoggedOut) {
+    logger.warn('Session verification failed - user appears logged out');
+    return false;
+  }
+
+  logger.info('Session verified - still logged in');
+  return true;
+}
+
+/**
+ * Re-login if session has expired
+ * @param {import('@playwright/test').Page} page - Playwright page object
+ * @param {Object} credentials - Login credentials
+ * @param {Object} logger - Logger instance
+ * @param {string} sessionId - Session ID
+ * @param {boolean} headless - Whether running in headless mode
+ * @returns {Promise<boolean>} Success status
+ */
+export async function ensureLoggedIn(page, credentials, logger, sessionId, headless) {
+  const isLoggedIn = await verifyLoginSession(page, logger);
+
+  if (!isLoggedIn) {
+    logger.info('Session expired, re-logging in...');
+    return await login(page, credentials, logger, sessionId, headless);
+  }
+
+  return true;
+}

@@ -249,8 +249,15 @@ async function main() {
   } finally {
     // Cleanup
     if (browser) {
-      logger.info('Closing browser...');
-      await browser.close();
+      if (argv.keepOpen) {
+        logger.info('Browser will remain open (--keep-open flag set)');
+        logger.info('Press Ctrl+C to close when done');
+        // Keep the process alive
+        await new Promise(() => {});
+      } else {
+        logger.info('Closing browser...');
+        await browser.close();
+      }
     }
 
     logger.info('RPA completed');

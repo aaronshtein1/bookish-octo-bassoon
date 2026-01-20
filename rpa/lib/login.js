@@ -117,7 +117,25 @@ async function waitForLandingPage(page, logger, timeout = 60000) {
   const startTime = Date.now();
 
   while (Date.now() - startTime < timeout) {
-    // Check for logged-in indicators
+    const currentUrl = page.url();
+
+    // Check if we're on the home page (post-MFA landing page)
+    if (currentUrl.includes('/Common/Home_ns.aspx') || currentUrl.includes('/Home')) {
+      logger.info(`Landing page detected via URL: ${currentUrl}`);
+      return true;
+    }
+
+    // Check if URL no longer contains MFA indicators
+    if (!currentUrl.includes('/mfa/') && !currentUrl.includes('login') && !currentUrl.includes('signin')) {
+      // Also verify we're not logged out
+      const loggedOut = await detectLoggedOut(page, logger);
+      if (!loggedOut) {
+        logger.info('Landing page detected via URL change (no longer on MFA/login page)');
+        return true;
+      }
+    }
+
+    // Check for logged-in indicators as fallback
     for (const selector of LOGIN_CONFIG.selectors.loggedInIndicators) {
       try {
         const element = await page.$(selector);
@@ -131,14 +149,6 @@ async function waitForLandingPage(page, logger, timeout = 60000) {
       } catch (error) {
         // Continue checking
       }
-    }
-
-    // Also check URL doesn't contain login/auth
-    const currentUrl = page.url();
-    const loggedOut = await detectLoggedOut(page, logger);
-    if (!loggedOut && !currentUrl.includes('login') && !currentUrl.includes('signin')) {
-      logger.info('Landing page detected via URL change');
-      return true;
     }
 
     await humanDelay(500, 1000);
@@ -318,7 +328,7 @@ async function handleMFA(page, logger, headless) {
 
   // Wait for landing page (automatically detects when MFA is complete)
   logger.info('Waiting for MFA completion and landing page...');
-  await humanDelay(2000, 3000);
+  await humanDelay(500, 1000); // Reduced from 2-3 seconds to 0.5-1 second
   const landingPageDetected = await waitForLandingPage(
     page,
     logger,
@@ -407,7 +417,7 @@ export async function login(page, credentials, logger, sessionId, headless = tru
     }
 
     // Final verification
-    await humanDelay(1000, 1500);
+    await humanDelay(300, 500); // Reduced from 1-1.5 seconds
     const isLoggedOut = await detectLoggedOut(page, logger);
 
     if (isLoggedOut) {

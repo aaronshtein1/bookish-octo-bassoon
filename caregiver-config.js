@@ -25,6 +25,7 @@ export const CAREGIVER_CONFIG = {
       'dropdown__1': 'hasCar',        // Car (Yes/No)
       'dropdown6': 'availability',    // Availability
       'dropdown2': 'preferredShift',  // Preferred Shift
+      'date4': 'applicationDate',     // Date of Application (adjust column ID as needed)
     }
   },
 
@@ -49,9 +50,9 @@ export const CAREGIVER_CONFIG = {
         defaultValue: 'AHS-Albany'
       },
 
-      // CAREGIVER TYPE - Dropdown - Employee
+      // CAREGIVER TYPE - Dropdown - Employee (Hiring Status field in HHA Exchange)
       caregiverType: {
-        selector: 'select[name*="Type" i], select[id*="CaregiverType" i]',
+        selector: 'select[id*="HiringStatus" i], select[name*="HiringStatus" i]',
         required: true,
         type: 'dropdown',
         fixedValue: 'Employee'
@@ -83,18 +84,18 @@ export const CAREGIVER_CONFIG = {
         source: null
       },
 
-      // GENDER - Dropdown
+      // GENDER - Dropdown - REQUIRED (make assumption based on name)
       gender: {
         selector: 'select[name*="Gender" i], select[id*="Gender" i]',
-        required: false,
+        required: true,
         type: 'dropdown',
-        fixedValue: 'Female' // Default, can be changed
+        fixedValue: 'Female' // Default assumption (vast majority are female per user)
       },
 
-      // INITIALS - Text Input
+      // INITIALS - Text Input - REQUIRED
       initials: {
         selector: 'input[name*="Initials" i], input[id*="Initials" i]',
-        required: false,
+        required: true,
         source: 'applicantName',
         transform: (name) => {
           const parts = name.trim().split(' ');
@@ -102,27 +103,44 @@ export const CAREGIVER_CONFIG = {
         }
       },
 
-      // DATE OF BIRTH - Date Input (format: mm/dd/yyyy)
+      // DATE OF BIRTH - Date Input (HTML5 type="date" requires YYYY-MM-DD format)
       dateOfBirth: {
         selector: 'input[name*="Birth" i], input[id*="Birth" i], input[type="date"]',
         required: true,
         source: 'dateOfBirth',
         type: 'date',
+        fixedValue: '1990-01-01', // Placeholder until Monday data available (ISO format for HTML5 date input)
         transform: (date) => {
+          // HTML5 date inputs require YYYY-MM-DD format
+          if (!date || date === '1990-01-01') return '1990-01-01'; // Use placeholder in ISO format
           if (date && date.includes('-')) {
-            const [year, month, day] = date.split('-');
-            return `${month}/${day}/${year}`;
+            // Already in YYYY-MM-DD format
+            return date;
+          }
+          if (date && date.includes('/')) {
+            // Convert MM/DD/YYYY to YYYY-MM-DD
+            const [month, day, year] = date.split('/');
+            return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
           }
           return date;
         }
       },
 
-      // SOCIAL SECURITY NUMBER - Text Input
+      // SOCIAL SECURITY NUMBER - Text Input - REQUIRED (format: XXX-XX-XXXX)
       ssn: {
-        selector: 'input[name*="SSN" i], input[id*="SSN" i], input[name*="Social" i]',
-        required: false,
+        selector: 'input[name*="SSN" i]:not([type="hidden"]), input[id*="SSN" i]:not([type="hidden"]), input[name*="Social" i]:not([type="hidden"])',
+        required: true,
         source: 'ssn',
-        transform: (ssn) => ssn ? ssn.replace(/\D/g, '') : ''
+        fixedValue: '777-88-9999', // Placeholder - need to add to Monday.com (using different test SSN with dashes)
+        transform: (ssn) => {
+          if (!ssn || ssn === '777-88-9999') return '777-88-9999';
+          // Format SSN: remove all non-digits, then add dashes
+          const cleaned = ssn.replace(/\D/g, '');
+          if (cleaned.length === 9) {
+            return `${cleaned.substring(0, 3)}-${cleaned.substring(3, 5)}-${cleaned.substring(5, 9)}`;
+          }
+          return ssn; // Return as-is if already formatted
+        }
       },
 
       // ALT. CAREGIVER CODE - Text Input (optional)
@@ -132,9 +150,9 @@ export const CAREGIVER_CONFIG = {
         source: null
       },
 
-      // STATUS - Dropdown - Active
+      // STATUS - Dropdown - Active (NOT HiringStatus)
       status: {
-        selector: 'select[name*="Status" i]:not([name*="Marital" i]), select[id*="Status" i]:not([id*="Marital" i])',
+        selector: 'select[name*="Status" i]:not([name*="Marital" i]):not([name*="Hiring" i]), select[id*="Status" i]:not([id*="Marital" i]):not([id*="Hiring" i])',
         required: true,
         type: 'dropdown',
         fixedValue: 'Active'
@@ -143,11 +161,10 @@ export const CAREGIVER_CONFIG = {
       // EMPLOYMENT TYPE - Checkboxes (PCA, HHA, etc.)
       // Note: This is a checkbox group, not a single field
       employmentTypePCA: {
-        selector: 'input[type="checkbox"][value="PCA"], input[type="checkbox"][id*="PCA" i]',
+        selector: 'input[id="ctl00_ContentPlaceHolder1_uxChkEmploymentType_0"]',  // PCA checkbox - first in employment type list
         required: false,
-        source: 'certificationType',
         type: 'checkbox',
-        transform: (certType) => certType && certType.toLowerCase().includes('pca')
+        fixedValue: true  // Always check PCA employment type
       },
 
       employmentTypeHHA: {
@@ -158,45 +175,47 @@ export const CAREGIVER_CONFIG = {
         transform: (certType) => certType && certType.toLowerCase().includes('hha')
       },
 
-      // REFERRAL SOURCE - Dropdown (showing "Indeed.com" in screenshot)
-      referralSource: {
-        selector: 'select[name*="Referral" i], select[id*="ReferralSource" i]',
-        required: false,
-        type: 'dropdown',
-        fixedValue: 'Indeed.com'
-      },
+      // REFERRAL SOURCE - Dropdown - OPTIONAL FOR NOW (need to inspect actual dropdown values)
+      // COMMENTED OUT: "Website" doesn't match any dropdown option in HHA Exchange
+      // referralSource: {
+      //   selector: 'select[name*="Referral" i], select[id*="ReferralSource" i]',
+      //   required: false,
+      //   type: 'dropdown',
+      //   fixedValue: 'Website' // Trying "Website" as it's listed first in user's data
+      // },
 
-      // TEAM - Dropdown
+      // TEAM - Dropdown - OPTIONAL FOR NOW (need to inspect actual dropdown values)
       team: {
         selector: 'select[name*="Team" i], select[id*="Team" i]',
         required: false,
-        source: 'preferredLocations',
-        type: 'dropdown'
+        type: 'dropdown',
+        fixedValue: 'Nassau' // Per user's data - may need different value
       },
 
-      // LOCATION - Dropdown (showing "Albany" in screenshot)
+      // LOCATION - Dropdown - OPTIONAL FOR NOW (need to inspect actual dropdown values)
       location: {
         selector: 'select[name*="Location" i], select[id*="Location" i]',
-        required: true,
+        required: false,
         source: 'preferredLocations',
         type: 'dropdown',
-        defaultValue: 'Albany'
+        defaultValue: 'Suffolk'
       },
 
-      // BRANCH - Dropdown (showing "Albany (Licensed)" in screenshot)
+      // BRANCH - Dropdown - OPTIONAL FOR NOW (need to inspect actual dropdown values)
       branch: {
         selector: 'select[name*="Branch" i], select[id*="Branch" i]',
-        required: true,
-        source: 'preferredLocations',
+        required: false,
         type: 'dropdown',
-        defaultValue: 'Albany (Licensed)'
+        fixedValue: 'Main Office'
       },
 
-      // ADDRESS LINE 1 - Text Input
+      // ADDRESS LINE 1 / STREET 1 - Text Input - REQUIRED (need to add to Monday.com)
+      // This is the main "Street 1" field in Demographics section
       addressLine1: {
-        selector: 'input[name*="Address" i][name*="1" i], input[id*="AddressLine1" i], input[id*="Address1" i]',
-        required: false,
-        source: 'address1'
+        selector: 'input[id="ctl00_ContentPlaceHolder1_uxTxtStreet1"]',  // Street 1 field (the REAL address field)
+        required: true,
+        source: 'address1',
+        fixedValue: '123 Main Street' // Placeholder until Monday data available
       },
 
       // ADDRESS LINE 2 - Text Input
@@ -206,60 +225,74 @@ export const CAREGIVER_CONFIG = {
         source: 'address2'
       },
 
-      // ZIP - Text Input
+      // ZIP - Text Input - REQUIRED (need to add to Monday.com)
       zip: {
         selector: 'input[name*="Zip" i]:not([name*="Zip4" i]), input[id*="Zip" i]:not([id*="Zip4" i])',
-        required: false,
+        required: true,
         source: 'zipCode',
-        transform: (zip) => zip ? zip.replace(/\D/g, '').substring(0, 5) : ''
+        fixedValue: '10001', // Placeholder until Monday data available
+        transform: (zip) => zip && zip !== '10001' ? zip.replace(/\D/g, '').substring(0, 5) : '10001'
       },
 
-      // CITY - Text Input
+      // CITY - Text Input - REQUIRED (need to add to Monday.com)
       city: {
         selector: 'input[name*="City" i], input[id*="City" i]',
-        required: false,
-        source: 'city'
+        required: true,
+        source: 'city',
+        fixedValue: 'New York' // Placeholder until Monday data available
       },
 
-      // STATE - Text Input
+      // STATE - Text Input - REQUIRED (need to add to Monday.com)
       state: {
-        selector: 'input[name*="State" i], select[name*="State" i], input[id*="State" i]',
-        required: false,
+        selector: 'input[type="text"][name*="State" i]:not([type="hidden"]), select[name*="State" i], input[type="text"][id*="State" i]:not([type="hidden"]):not([id*="__VIEW" i])',
+        required: true,
         type: 'text',
         fixedValue: 'NY'
       },
 
-      // PRIMARY PHONE - 3 Text Inputs (area code - prefix - line)
+      // PRIMARY PHONE (Home Phone) - 3 Text Inputs (area code - prefix - line)
       // Screenshot shows: 516 - 974 - 2038
       primaryPhoneArea: {
-        selector: 'input[name*="PrimaryPhone" i][name*="Area" i], label:has-text("Primary Phone") ~ * input:nth-of-type(1)',
+        selector: 'input[id="ctl00_ContentPlaceHolder1_uxTxtHomePhone_uxtxtPhone1"]',
         required: true,
         source: 'phone',
         type: 'phone-part',
         transform: (phone) => {
-          const cleaned = phone.replace(/\D/g, '');
+          let cleaned = phone.replace(/\D/g, '');
+          // Strip leading 1 (country code) if present
+          if (cleaned.length === 11 && cleaned.startsWith('1')) {
+            cleaned = cleaned.substring(1);
+          }
           return cleaned.substring(0, 3);
         }
       },
 
       primaryPhonePrefix: {
-        selector: 'input[name*="PrimaryPhone" i][name*="Prefix" i], label:has-text("Primary Phone") ~ * input:nth-of-type(2)',
+        selector: 'input[id="ctl00_ContentPlaceHolder1_uxTxtHomePhone_uxtxtPhone2"]',
         required: true,
         source: 'phone',
         type: 'phone-part',
         transform: (phone) => {
-          const cleaned = phone.replace(/\D/g, '');
+          let cleaned = phone.replace(/\D/g, '');
+          // Strip leading 1 (country code) if present
+          if (cleaned.length === 11 && cleaned.startsWith('1')) {
+            cleaned = cleaned.substring(1);
+          }
           return cleaned.substring(3, 6);
         }
       },
 
       primaryPhoneLine: {
-        selector: 'input[name*="PrimaryPhone" i][name*="Line" i], label:has-text("Primary Phone") ~ * input:nth-of-type(3)',
+        selector: 'input[id="ctl00_ContentPlaceHolder1_uxTxtHomePhone_uxtxtPhone3"]',
         required: true,
         source: 'phone',
         type: 'phone-part',
         transform: (phone) => {
-          const cleaned = phone.replace(/\D/g, '');
+          let cleaned = phone.replace(/\D/g, '');
+          // Strip leading 1 (country code) if present
+          if (cleaned.length === 11 && cleaned.startsWith('1')) {
+            cleaned = cleaned.substring(1);
+          }
           return cleaned.substring(6, 10);
         }
       },
@@ -298,10 +331,63 @@ export const CAREGIVER_CONFIG = {
         }
       },
 
-      // LANGUAGE 1 - Dropdown (showing "English" in screenshot)
+      // MOBILE/TEXT MESSAGING PHONE (Notification Text Number at bottom) - 3 Text Inputs - REQUIRED
+      mobilePhoneArea: {
+        selector: 'input[id="ctl00_ContentPlaceHolder1_uxtxtNotificationTextNumber_uxtxtPhone1"]',
+        required: true,
+        source: 'phone',
+        type: 'phone-part',
+        transform: (phone) => {
+          let cleaned = phone.replace(/\D/g, '');
+          // Strip leading 1 (country code) if present
+          if (cleaned.length === 11 && cleaned.startsWith('1')) {
+            cleaned = cleaned.substring(1);
+          }
+          return cleaned.substring(0, 3);
+        }
+      },
+
+      mobilePhonePrefix: {
+        selector: 'input[id="ctl00_ContentPlaceHolder1_uxtxtNotificationTextNumber_uxtxtPhone2"]',
+        required: true,
+        source: 'phone',
+        type: 'phone-part',
+        transform: (phone) => {
+          let cleaned = phone.replace(/\D/g, '');
+          // Strip leading 1 (country code) if present
+          if (cleaned.length === 11 && cleaned.startsWith('1')) {
+            cleaned = cleaned.substring(1);
+          }
+          return cleaned.substring(3, 6);
+        }
+      },
+
+      mobilePhoneLine: {
+        selector: 'input[id="ctl00_ContentPlaceHolder1_uxtxtNotificationTextNumber_uxtxtPhone3"]',
+        required: true,
+        source: 'phone',
+        type: 'phone-part',
+        transform: (phone) => {
+          let cleaned = phone.replace(/\D/g, '');
+          // Strip leading 1 (country code) if present
+          if (cleaned.length === 11 && cleaned.startsWith('1')) {
+            cleaned = cleaned.substring(1);
+          }
+          return cleaned.substring(6, 10);
+        }
+      },
+
+      // EMAIL - Text Input - REQUIRED
+      email: {
+        selector: 'input[type="email"], input[name*="Email" i], input[id*="Email" i]',
+        required: true,
+        source: 'email'
+      },
+
+      // LANGUAGE 1 - Dropdown - REQUIRED (If two languages selected use Language 2)
       language1: {
         selector: 'select[name*="Language" i][name*="1" i], select[id*="Language1" i]',
-        required: false,
+        required: true,
         source: 'languages',
         type: 'dropdown',
         transform: (langs) => {
@@ -312,18 +398,18 @@ export const CAREGIVER_CONFIG = {
         }
       },
 
-      // LANGUAGE 2 - Dropdown
+      // LANGUAGE 2 - Dropdown - REQUIRED (must be different from Language 1)
       language2: {
         selector: 'select[name*="Language" i][name*="2" i], select[id*="Language2" i]',
-        required: false,
+        required: true,
         source: 'languages',
         type: 'dropdown',
         transform: (langs) => {
           if (langs && langs.includes(',')) {
             const parts = langs.split(',');
-            return parts[1] ? parts[1].trim() : '';
+            return parts[1] ? parts[1].trim() : 'Spanish'; // Default to Spanish if no second language
           }
-          return '';
+          return 'Spanish'; // Default to Spanish (different from Language 1 which defaults to English)
         }
       },
 
@@ -335,20 +421,37 @@ export const CAREGIVER_CONFIG = {
         type: 'dropdown'
       },
 
-      // APPLICATION DATE - Date Input
+      // APPLICATION DATE - Date Input - REQUIRED
       applicationDate: {
-        selector: 'input[name*="Application" i][name*="Date" i], input[id*="ApplicationDate" i]',
-        required: false,
+        selector: 'input[id="ctl00_ContentPlaceHolder1_uxtxtApplicationDate"]',
+        required: true,
         type: 'date',
-        fixedValue: () => {
-          const now = new Date();
-          return `${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getDate().toString().padStart(2, '0')}/${now.getFullYear()}`;
+        source: 'applicationDate',  // Get from Monday.com
+        fixedValue: (caregiver) => {
+          // Try to get from Monday.com first - check if caregiver and property exist
+          const mondayDate = caregiver && caregiver.applicationDate ? caregiver.applicationDate : null;
+
+          // If no date from Monday, use today
+          if (!mondayDate) {
+            const now = new Date();
+            return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
+          }
+          // If already in YYYY-MM-DD format, return as-is
+          if (mondayDate.includes('-') && mondayDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            return mondayDate;
+          }
+          // If in MM/DD/YYYY format, convert to YYYY-MM-DD
+          if (mondayDate.includes('/')) {
+            const [month, day, year] = mondayDate.split('/');
+            return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+          }
+          return mondayDate;
         }
       }
     },
 
     // Submit button selector
-    submitButton: 'button[type="submit"], button:has-text("Save"), button:has-text("Submit"), button:has-text("Add Staff")',
+    submitButton: 'input[type="submit"][value*="Save" i], button:has-text("Save"), input[id*="Save" i], input[name*="Save" i], button[type="submit"], button:has-text("Submit"), button:has-text("Add Staff")',
 
     // Success indicators (to verify entry was successful)
     successIndicators: [

@@ -115,23 +115,20 @@ async function searchIMAPForMFACode(email, password, logger, startTime = null) {
         // Search for emails from last 5 minutes
         const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
 
-        // Search for emails from last 5 minutes with HHAeXchange subject
+        // Search for recent emails from HHAeXchange
+        // Use AND logic: must be BOTH from help@hhaexchange.com AND have subject with HHAeXchange
         const searchCriteria = [
           ['SINCE', fiveMinutesAgo],
-          ['OR',
-            ['SUBJECT', 'HHAeXchange'],
-            ['OR',
-              ['SUBJECT', 'Authentication Code'],
-              ['OR', ['SUBJECT', 'verification'], ['SUBJECT', 'code']]
-            ]
-          ]
+          ['FROM', 'help@hhaexchange.com'],
+          ['SUBJECT', 'HHAeXchange']
         ];
 
         logger.debug('Searching for MFA emails...');
+        logger.debug(`Search criteria: ${JSON.stringify(searchCriteria)}`);
 
         imap.search(searchCriteria, (err, results) => {
           if (err) {
-            logger.debug(`Search error (may be expected): ${err.message}`);
+            logger.warn(`Search error (trying simpler search): ${err.message}`);
             // Try a simpler search
             imap.search(['ALL'], async (err2, results2) => {
               if (err2) {
@@ -140,6 +137,7 @@ async function searchIMAPForMFACode(email, password, logger, startTime = null) {
                 return resolve(null);
               }
 
+              logger.info(`Fallback search found ${results2.length} total emails (checking last 10)`);
               await processResults(imap, results2.slice(-10), logger, startTime)
                 .then(code => { mfaCode = code; })
                 .catch(() => {});
@@ -149,7 +147,7 @@ async function searchIMAPForMFACode(email, password, logger, startTime = null) {
             return;
           }
 
-          logger.debug(`Found ${results.length} matching emails`);
+          logger.info(`Primary search found ${results.length} matching emails`);
 
           processResults(imap, results.slice(-10), logger, startTime)
             .then(code => {
@@ -187,9 +185,11 @@ async function searchIMAPForMFACode(email, password, logger, startTime = null) {
  */
 async function processResults(imap, messageIds, logger, startTime = null) {
   if (!messageIds || messageIds.length === 0) {
-    logger.debug('No messages to process');
+    logger.info('No messages to process');
     return null;
   }
+
+  logger.info(`Processing ${messageIds.length} emails...`);
 
   return new Promise((resolve) => {
     const fetch = imap.fetch(messageIds, { bodies: '' });
@@ -207,15 +207,20 @@ async function processResults(imap, messageIds, logger, startTime = null) {
           const from = parsed.from?.text || '';
           const emailDate = parsed.date || new Date(0);
 
-          logger.debug(`Checking email: "${subject}" from ${from}, date: ${emailDate}`);
+          logger.info(`Checking email: "${subject}" from ${from}, date: ${emailDate}`);
 
           // Check if email is fresh enough (only if startTime provided)
           if (startTime) {
             const emailTimestamp = emailDate.getTime();
-            if (emailTimestamp < startTime) {
-              logger.debug(`Skipping old email (received before MFA request started)`);
+            const startDate = new Date(startTime);
+            // Allow emails from up to 10 seconds before MFA started (to account for clock skew and delivery delays)
+            const gracePeriod = 10000; // 10 seconds
+            logger.info(`Email timestamp: ${emailTimestamp}, Start time: ${startTime - gracePeriod} (${new Date(startTime - gracePeriod)})`);
+            if (emailTimestamp < (startTime - gracePeriod)) {
+              logger.info(`⏭️ Skipping old email - received at ${emailDate} (before grace period)`);
               return;
             }
+            logger.info(`✓ Email is recent enough - within grace period`);
           }
 
           // Check if from HHA Exchange (be flexible with sender check)
@@ -230,8 +235,11 @@ async function processResults(imap, messageIds, logger, startTime = null) {
 
           const code = extractMFACodeFromEmail(parsed.text, parsed.html);
           if (code) {
-            logger.info(`Found MFA code in email: "${subject}"`);
+            logger.info(`✅ Found MFA code in email: "${subject}" - CODE: ${code}`);
             foundCode = code;
+          } else {
+            logger.warn(`❌ No MFA code found in email body`);
+            logger.debug(`Email text preview: ${(parsed.text || '').substring(0, 200)}`);
           }
         });
       });

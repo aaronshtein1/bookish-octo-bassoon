@@ -1,0 +1,11 @@
+2026-01-18 18:59:20 [32minfo[39m: Logger initialized. Session ID: caregiver-boards-test
+2026-01-18 18:59:20 [32minfo[39m: Log file: c:\projects\bookish-octo-bassoon\logs\caregiver-boards-test.log
+============================================================
+EXAMINING CAREGIVER BOARDS
+============================================================
+
+Looking for boards with names:
+  - HHA/PCA Submitted Applicants
+  - HHA/PCA Hiring
+
+Found boards:
